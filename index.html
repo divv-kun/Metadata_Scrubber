@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Private Metadata Scrubber</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'JetBrains Mono', monospace;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 50px;
+        background: #0d0d0d;
+        color: #00ff00;
+        margin: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+      canvas#matrix {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        opacity: 0.2;
+      }
+      h1 {
+        text-shadow: 0 0 10px #00ff00;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        color: #cfc;
+        margin-bottom: 2rem;
+      }
+      #drop-zone {
+        width: 400px;
+        height: 200px;
+        border: 2px dashed #00ff00;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 20, 0, 0.8);
+        cursor: pointer;
+        transition: 0.3s;
+        box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+        color: #00ff00;
+      }
+      #drop-zone:hover {
+        background: rgba(0, 40, 0, 0.9);
+        box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
+      }
+      #results-area {
+        width: 100%;
+        max-width: 600px;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        z-index: 10;
+      }
+      .file-card {
+        background: rgba(0, 20, 0, 0.9);
+        border: 1px solid #00ff00;
+        border-radius: 4px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 0 5px rgba(0, 255, 0, 0.1);
+        color: #cfc;
+      }
+      .file-card.error {
+        border-color: #ff3333;
+        background: rgba(40, 0, 0, 0.9);
+        color: #ffcccc;
+      }
+      .file-card.success {
+        border-color: #00ff00;
+      }
+      .thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 2px;
+        background: #001100;
+        border: 1px solid #004400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #00ff00;
+      }
+      .file-info {
+        flex: 1;
+      }
+      .file-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+        font-size: 0.9rem;
+      }
+      .meta-stats {
+        font-size: 0.75rem;
+        color: #00aa00;
+        display: flex;
+        gap: 15px;
+      }
+      .stat-group {
+        display: flex;
+        flex-direction: column;
+      }
+      .stat-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: #007700;
+      }
+      .download-btn {
+        background: #00aa00;
+        color: black;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 2px;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 0.85rem;
+        transition: 0.2s;
+      }
+      .download-btn:hover {
+        background: #00ff00;
+        box-shadow: 0 0 10px #00ff00;
+      }
+      .error-msg {
+        color: #ff3333;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .icon-large {
+        font-size: 3rem;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="matrix"></canvas>
+    <h1>SYSTEM://METADATA_SCRUBBER</h1>
+    <p>Upload Files. Strip Data. Remain Anonymous.</p>
+
+    <div id="drop-zone" onclick="document.getElementById('fileInput').click()">
+      <i class="ri-upload-cloud-2-line icon-large"></i>
+      <span>INITIATE UPLOAD SEQUENCE</span>
+    </div>
+    <input
+      type="file"
+      id="fileInput"
+      style="display: none"
+      multiple
+      onchange="handleFiles(this.files)"
+    />
+
+    <div id="results-area"></div>
+
+    <script>
+      const WEBHOOK_URL = "http://localhost:5678/webhook/scrub-file"; // Use your PRODUCTION URL
+
+      const resultsArea = document.getElementById("results-area");
+
+      // Matrix Rain Effect
+      const canvas = document.getElementById('matrix');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+      const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const nums = '0123456789';
+      const alphabet = katakana + latin + nums;
+      
+      const fontSize = 16;
+      const columns = canvas.width/fontSize;
+      
+      const rainDrops = [];
+      for( let x = 0; x < columns; x++ ) {
+          rainDrops[x] = 1;
+      }
+      
+      const draw = () => {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          ctx.fillStyle = '#0F0';
+          ctx.font = fontSize + 'px monospace';
+      
+          for(let i = 0; i < rainDrops.length; i++)
+          {
+              const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+              ctx.fillText(text, i*fontSize, rainDrops[i]*fontSize);
+              
+              if(rainDrops[i]*fontSize > canvas.height && Math.random() > 0.975){
+                  rainDrops[i] = 0;
+              }
+              rainDrops[i]++;
+          }
+      };
+      setInterval(draw, 30);
+      window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      });
+
+      async function handleFiles(files) {
+        // Clear previous results if you want, or keep appending. 
+        // resultsArea.innerHTML = ""; 
+
+        // define the ALLOWED extensions (whitelist)
+        const allowedExtensions = [
+            "jpg", "jpeg", "png", "tiff", "tif", 
+            "pdf", "docx", "xlsx", "pptx", 
+            "mp4", "mov", "m4v", "qt", 
+            "heic", "arw", "cr2", "nef", "dng"
+        ];
+
+        for (let file of files) {
+          // 1. Create Card UI
+          const card = createFileCard(file);
+          resultsArea.appendChild(card);
+          
+          const ui = {
+            card: card,
+            status: card.querySelector('.file-status'),
+            downloadArea: card.querySelector('.download-area'),
+            afterSize: card.querySelector('.size-after')
+          };
+
+          // 2. Validate Extension
+          const ext = file.name.split('.').pop().toLowerCase();
+          if (!allowedExtensions.includes(ext)) {
+              markError(ui, `File type .${ext} not supported`);
+              continue; 
+          }
+
+          // 3. Process
+          try {
+            ui.status.innerText = "Processing...";
+            
+            let formData = new FormData();
+            formData.append("data", file); 
+
+            const response = await fetch(WEBHOOK_URL, {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) throw new Error("Backend error");
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            // 4. Update UI with Success
+            markSuccess(ui, blob, url, file.name);
+
+          } catch (err) {
+            markError(ui, "Processing failed. Is server running?");
+          }
+        }
+      }
+
+      function createFileCard(file) {
+        const div = document.createElement("div");
+        div.className = "file-card";
+        
+        const isImage = file.type.startsWith("image/");
+        let thumbnail = `<div class="thumbnail"><i class="ri-file-text-line"></i></div>`;
+        
+        if (isImage) {
+            const url = URL.createObjectURL(file);
+            thumbnail = `<img src="${url}" class="thumbnail" onload="URL.revokeObjectURL(this.src)">`;
+        }
+
+        const sizeStr = (file.size / 1024).toFixed(1) + " KB";
+        
+        div.innerHTML = `
+            ${thumbnail}
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <div class="meta-stats">
+                    <div class="stat-group">
+                        <span class="stat-label">Original</span>
+                        <span>${sizeStr}</span>
+                    </div>
+                     <div class="stat-group">
+                        <span class="stat-label">Cleaned</span>
+                        <span class="size-after">---</span>
+                    </div>
+                </div>
+                <div class="file-status" style="margin-top:5px; font-size:0.85rem; color:#007700;">Pending...</div>
+            </div>
+            <div class="download-area"></div>
+        `;
+        return div;
+      }
+
+      function markError(ui, msg) {
+        ui.card.classList.add("error");
+        ui.status.innerHTML = `<span class="error-msg"><i class="ri-error-warning-fill"></i> ${msg}</span>`;
+        ui.afterSize.innerText = "FAILED";
+      }
+
+      function markSuccess(ui, blob, url, originalName) {
+        ui.card.classList.add("success");
+        ui.status.innerHTML = `<span style="color:#00ff00"><i class="ri-check-double-line"></i> Secure</span>`;
+        
+        const newSize = (blob.size / 1024).toFixed(1) + " KB";
+        ui.afterSize.innerText = newSize;
+
+        const btn = document.createElement("a");
+        btn.href = url;
+        btn.className = "download-btn";
+        btn.innerHTML = `<i class="ri-download-2-line"></i> DOWNLOAD`;
+        btn.download = `clean_${originalName}`;
+        
+        ui.downloadArea.innerHTML = "";
+        ui.downloadArea.appendChild(btn);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+services:
+  n8n:
+    image: n8n-exiftool  # Change 'build: .' to this if you want to use the pre-built image
+    container_name: n8n_scrubber
+    restart: always      # Recommended to ensure n8n restarts if the server reboots
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PAYLOAD_SIZE_MAX=300
+      - N8N_FORMDATA_FILE_SIZE_MAX=300
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
