@@ -3,54 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <title>Private Metadata Scrubber</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
       body {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'Press Start 2P', system-ui, cursive;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 50px;
-        background: #0d0d0d;
-        color: #00ff00;
-        margin: 0;
+        justify-content: flex-start; /* Move up */
         min-height: 100vh;
+        padding-top: 100px; /* Position similar to before */
+        padding-left: 0;
+        background: #000;
+        color: #fff;
+        margin: 0;
         overflow-x: hidden;
+        cursor: progress; 
+      }
+      /* Dim the background slightly for readability */
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.2); /* Make transparent as requested */
+        z-index: -1;
       }
       canvas#matrix {
         position: fixed;
-        top: 0;
-        left: 0;
+        top: 0; left: 0;
         z-index: -1;
-        opacity: 0.2;
+        opacity: 0.15; /* Subtle Matrix */
       }
       h1 {
-        text-shadow: 0 0 10px #00ff00;
-        margin-bottom: 0.5rem;
+        margin-bottom: 2rem;
+        background: transparent;
+        color: #fff;
+        padding: 10px;
+        font-size: 1.2rem;
+        font-weight: normal;
+        letter-spacing: 2px;
+        box-shadow: none;
+        border: none;
+        
+        /* Typing Update: Use inline-block to preventing full-width stretching */
+        display: inline-block;
+        white-space: nowrap;
+        overflow: hidden;
+        border-right: 12px solid #fff; 
+        width: 0;
+        animation: typing 3s steps(26, end) forwards, blink 0.75s step-end infinite;
+        text-shadow: 2px 2px #000;
+      }
+      @keyframes typing {
+        from { width: 0 }
+        to { width: 28ch } /* Adjusted to fit exactly */
+      }
+      @keyframes blink {
+        from, to { border-color: transparent }
+        50% { border-color: #fff }
       }
       p {
-        color: #cfc;
-        margin-bottom: 2rem;
+        color: #fff;
+        margin-bottom: 3rem;
+        text-shadow: 2px 2px 0 #000;
+        background: rgba(0,0,0,0.5);
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        line-height: 1.5;
       }
       #drop-zone {
-        width: 400px;
-        height: 200px;
-        border: 2px dashed #00ff00;
-        border-radius: 4px;
+        width: 100%;
+        max-width: 500px;
+        height: 250px;
+        border: 4px solid #c0c0c0; /* Windows 95 Border */
+        border-top-color: #fff;
+        border-left-color: #fff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 20, 0, 0.8);
+        background: #000080; /* BIOS Blue */
         cursor: pointer;
-        transition: 0.3s;
-        box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
-        color: #00ff00;
+        transition: 0.1s;
+        color: #ffffff; /* White Text as requested */
+        box-shadow: 4px 4px 0px #000;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px #000;
       }
       #drop-zone:hover {
-        background: rgba(0, 40, 0, 0.9);
-        box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
+        background: #0000aa;
       }
       #results-area {
         width: 100%;
@@ -58,55 +102,66 @@
         margin-top: 20px;
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 20px;
         z-index: 10;
       }
       .file-card {
-        background: rgba(0, 20, 0, 0.9);
-        border: 1px solid #00ff00;
-        border-radius: 4px;
-        padding: 15px;
+        background: #c0c0c0; /* Silver Windows */
+        border: 2px solid #fff;
+        border-bottom-color: #000;
+        border-right-color: #000;
+        border-top-color: #fff;
+        border-left-color: #fff;
+        padding: 10px;
         display: flex;
         align-items: center;
         gap: 15px;
-        box-shadow: 0 0 5px rgba(0, 255, 0, 0.1);
-        color: #cfc;
+        color: #000;
+        position: relative;
+        box-shadow: 4px 4px 0 #000;
       }
       .file-card.error {
-        border-color: #ff3333;
-        background: rgba(40, 0, 0, 0.9);
-        color: #ffcccc;
+        border-color: #ff0000; /* Subtle indication */
       }
       .file-card.success {
-        border-color: #00ff00;
+        border-color: #fff;
       }
       .thumbnail {
         width: 60px;
         height: 60px;
         object-fit: cover;
-        border-radius: 2px;
-        background: #001100;
-        border: 1px solid #004400;
+        background: #000;
+        border: 2px solid #808080;
+        border-bottom-color: #fff;
+        border-right-color: #fff;
+        border-top-color: #000;
+        border-left-color: #000;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 24px;
-        color: #00ff00;
+        color: #fff;
       }
       .file-info {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* Center metadata vertically */
       }
       .file-name {
-        font-weight: bold;
-        margin-bottom: 5px;
+        font-weight: normal;
+        margin-bottom: 10px;
         display: block;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
+        text-align: center; /* Center Name */
       }
       .meta-stats {
-        font-size: 0.75rem;
-        color: #00aa00;
+        font-size: 0.6rem;
+        color: #000;
         display: flex;
-        gap: 15px;
+        gap: 40px; /* More separation */
+        justify-content: center; /* Center Stats */
+        align-items: center;
       }
       .stat-group {
         display: flex;
@@ -115,40 +170,53 @@
       .stat-label {
         font-size: 0.65rem;
         text-transform: uppercase;
-        color: #007700;
+        color: #000;
+      }
+      .stat-group:last-child .stat-label, 
+      .stat-group:last-child span:last-child {
+         color: #008080; /* Teal for "Cleaned" label and value */
+         font-weight: bold;
       }
       .download-btn {
-        background: #00aa00;
-        color: black;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 2px;
+        background: #c0c0c0;
+        color: #000;
+        border: 2px solid #fff;
+        border-bottom-color: #000;
+        border-right-color: #000;
+        padding: 6px 14px;
         cursor: pointer;
         text-decoration: none;
         font-weight: bold;
-        font-size: 0.85rem;
-        transition: 0.2s;
+        font-size: 0.7rem;
+        transition: 0.0s;
+        font-family: 'Press Start 2P', cursive;
       }
-      .download-btn:hover {
-        background: #00ff00;
-        box-shadow: 0 0 10px #00ff00;
+      .download-btn:active {
+        border: 2px solid #808080;
+        border-bottom-color: #fff;
+        border-right-color: #fff;
+        border-top-color: #000;
+        border-left-color: #000;
+        transform: translate(2px, 2px);
       }
       .error-msg {
-        color: #ff3333;
+        color: #d00000;
         font-size: 0.85rem;
         display: flex;
         align-items: center;
         gap: 5px;
+        font-weight: bold;
       }
       .icon-large {
         font-size: 3rem;
         margin-bottom: 10px;
+        color: #fff;
       }
     </style>
   </head>
   <body>
     <canvas id="matrix"></canvas>
-    <h1>SYSTEM://METADATA_SCRUBBER</h1>
+    <h1 id="main-title">SYSTEM://METADATA_SCRUBBER</h1>
     <p>Upload Files. Strip Data. Remain Anonymous.</p>
 
     <div id="drop-zone" onclick="document.getElementById('fileInput').click()">
@@ -170,10 +238,17 @@
 
       const resultsArea = document.getElementById("results-area");
 
-      // Matrix Rain Effect
+      // Handle Title Animation End
+      const title = document.getElementById('main-title');
+      title.addEventListener('animationend', (e) => {
+        if (e.animationName === 'typing') {
+             title.classList.add('typing-done');
+        }
+      });
+
+      // Matrix Rain Effect (Restored & Customised)
       const canvas = document.getElementById('matrix');
       const ctx = canvas.getContext('2d');
-      
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
@@ -194,8 +269,9 @@
           ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           
-          ctx.fillStyle = '#0F0';
-          ctx.font = fontSize + 'px monospace';
+          ctx.fillStyle = '#FFFFFF'; /* White Text */
+          // Use same font as foreground
+          ctx.font = fontSize + 'px "Press Start 2P"'; 
       
           for(let i = 0; i < rainDrops.length; i++)
           {
@@ -208,7 +284,7 @@
               rainDrops[i]++;
           }
       };
-      setInterval(draw, 30);
+      setInterval(draw, 50); // Slightly slower for 8-bit feel
       window.addEventListener('resize', () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -248,6 +324,7 @@
           // 3. Process
           try {
             ui.status.innerText = "Processing...";
+            ui.status.style.color = "#000"; /* Black processing text */
             
             let formData = new FormData();
             formData.append("data", file); 
@@ -299,7 +376,7 @@
                         <span class="size-after">---</span>
                     </div>
                 </div>
-                <div class="file-status" style="margin-top:5px; font-size:0.85rem; color:#007700;">Pending...</div>
+                <div class="file-status" style="margin-top:5px; font-size:0.85rem; color:#000;">Processing...</div>
             </div>
             <div class="download-area"></div>
         `;
@@ -314,7 +391,8 @@
 
       function markSuccess(ui, blob, url, originalName) {
         ui.card.classList.add("success");
-        ui.status.innerHTML = `<span style="color:#00ff00"><i class="ri-check-double-line"></i> Secure</span>`;
+        ui.card.classList.add("success");
+        ui.status.innerHTML = `<span style="color:#008080; font-weight:bold;">Scrubbed</span>`;
         
         const newSize = (blob.size / 1024).toFixed(1) + " KB";
         ui.afterSize.innerText = newSize;
