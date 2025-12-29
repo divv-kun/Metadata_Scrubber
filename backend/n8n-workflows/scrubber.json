@@ -1,0 +1,178 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "httpMethod": ["POST"],
+        "path": "scrub-file",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-144, -208],
+      "id": "4b63aa0a-f570-4c77-8951-9d6f49d34125",
+      "name": "Webhook",
+      "webhookId": "973e8316-757f-4493-aa22-8b6fafb0ae59"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Disposition",
+                "value": "attachment; filename=\"clean_{{ $binary.data.fileName }}\""
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [736, -208],
+      "id": "b5ebb0a1-bacb-415c-881a-af346a2002ec",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/tmp/workfile",
+        "dataPropertyName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [112, -208],
+      "id": "0230aaba-aae6-467b-b9dd-2c4ddb0f190f",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "command": "=INPUT=\"/tmp/workfile\"\nOUTPUT=\"/tmp/cleaned_file\"\nSTATUS=\"cleaned\"\n\n# 1. Identify File Type\nEXT=$(exiftool -s3 -FileType \"${INPUT}\" | tr '[:upper:]' '[:lower:]')\n\n# 2. Run the correct command ONE time based on type\nif [[ \"$EXT\" == \"pdf\" || \"$EXT\" == \"docx\" || \"$EXT\" == \"xlsx\" ]]; then\n    # NUCLEAR SCRUB: Documents\n    # 2>/dev/null suppresses error text from clogging n8n\n    exiftool -all= -o \"${OUTPUT}\" \"${INPUT}\" 2>/dev/null || true\n\nelif [[ \"$EXT\" == \"jpeg\" || \"$EXT\" == \"jpg\" || \"$EXT\" == \"png\" || \"$EXT\" == \"tiff\" ]]; then\n    # SMART SCRUB: Images (Preserve Color/Rotation)\n    exiftool -all= -TagsFromFile @ -ColorSpaceTags -Orientation -o \"${OUTPUT}\" \"${INPUT}\" 2>/dev/null || true\n\nelif [[ \"$EXT\" == \"mp4\" || \"$EXT\" == \"mov\" || \"$EXT\" == \"m4v\" ]]; then\n    # VIDEO SCRUB: Target stubborn dates, ignore minor errors\n    exiftool -all= -CreateDate= -ModifyDate= -TrackCreateDate= -MediaCreateDate= \\\n    -AndroidVersion= -o \"${OUTPUT}\" \"${INPUT}\" 2>/dev/null || true\n\nelse\n    # EVERYTHING ELSE (EPUB, ZIP, etc.)\n    # Try a generic scrub. If it's an EPUB/ZIP, this will fail silently.\n    exiftool -all= -o \"${OUTPUT}\" \"${INPUT}\" 2>/dev/null || true\nfi\n\n# 3. The \"Self-Healing\" Check\n# If ExifTool failed (e.g., EPUB/ZIP), the OUTPUT file won't exist.\nif [ ! -f \"${OUTPUT}\" ]; then\n    # Fallback: Copy the original file so the user gets *something* back\n    cp \"${INPUT}\" \"${OUTPUT}\"\n    # Update status so frontend knows to show the warning\n    STATUS=\"unsupported\"\nfi\n\n# 4. Return JSON\necho \"{\\\"status\\\": \\\"$STATUS\\\"}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [320, -208],
+      "id": "e3cff067-0c42-4adf-bec4-3a0eaa9a9351",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/tmp/cleaned_file",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [528, -208],
+      "id": "ac45083b-9173-4038-8261-f63c85caccea",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "command": "rm \"/tmp/workfile\"\nrm \"/tmp/cleaned_file\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [928, -208],
+      "id": "b4ec92aa-9be1-448f-a37b-1b5253dcda3e",
+      "name": "Execute Command1"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute Command1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command1": {
+      "main": [[]]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "localhost:5678",
+          "connection": "keep-alive",
+          "content-length": "2571797",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+          "sec-ch-ua": "\"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+          "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryXSWbHzbdqkzmBrOJ",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "http://127.0.0.1:5500",
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "http://127.0.0.1:5500/",
+          "accept-encoding": "gzip, deflate, br, zstd",
+          "accept-language": "en-US,en;q=0.9,en-IN;q=0.8"
+        },
+        "params": {},
+        "query": {},
+        "body": {},
+        "webhookUrl": "http://localhost:5678/webhook/scrub-file",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1715cc7307166950ddc2c17ac3fa6065e57090c058838e229796bdaa84baea7b"
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "command": "exiftool -json /tmp/analyze_file"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [272, -128],
+      "id": "7b9a5579-53f4-4294-bb4b-a753ebf12483",
+      "name": "Execute Command2"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/tmp/analyze_file",
+        "dataPropertyName": "data0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [80, -128],
+      "id": "a1e6b468-cce2-4536-ad5b-591e6f3360b2",
+      "name": "Read/Write Files from Disk2"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.parse($node[\"Execute Command2\"].json.stdout) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [448, -128],
+      "id": "d746f813-748d-4b16-877d-4ac94c0fa40e",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-file",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-128, -128],
+      "id": "c0fcd844-8881-4fbb-85d5-f870c44e273f",
+      "name": "Webhook",
+      "webhookId": "8b1ebc1b-c3d5-4550-a1e5-6eb40bf7d284"
+    },
+    {
+      "parameters": {
+        "command": "rm \"/tmp/analyze_file\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, -128],
+      "id": "5027b48e-a69b-4ba1-bc83-adbeb442a897",
+      "name": "Execute Command"
+    }
+  ],
+  "connections": {
+    "Execute Command2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk2": {
+      "main": [
+        [
+          {
+            "node": "Execute Command2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "host": "localhost:5678",
+          "connection": "keep-alive",
+          "content-length": "2580",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+          "sec-ch-ua": "\"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+          "content-type": "multipart/form-data; boundary=----WebKitFormBoundaryy4tpBk34J11lGo4p",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "http://127.0.0.1:5501",
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "http://127.0.0.1:5501/",
+          "accept-encoding": "gzip, deflate, br, zstd",
+          "accept-language": "en-US,en;q=0.9,en-IN;q=0.8"
+        },
+        "params": {},
+        "query": {},
+        "body": {},
+        "webhookUrl": "http://localhost:5678/webhook/analyze-file",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "instanceId": "1715cc7307166950ddc2c17ac3fa6065e57090c058838e229796bdaa84baea7b"
+  }
+}

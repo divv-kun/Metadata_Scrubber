@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Automatic Metadata Scrubber</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Press Start 2P", system-ui, cursive;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start; /* Move up */
+        min-height: 100vh;
+        padding-top: 100px; /* Position similar to before */
+        padding-left: 0;
+        background: #000;
+        color: #fff;
+        margin: 0;
+        overflow-x: hidden;
+        cursor: progress;
+      }
+      /* Dim the background slightly for readability */
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.2); /* Make transparent as requested */
+        z-index: -1;
+      }
+      canvas#matrix {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        opacity: 0.3; /* Subtle Matrix */
+      }
+      h1 {
+        margin-bottom: 2rem;
+        background: transparent;
+        color: #fff;
+        padding: 10px;
+        font-size: 1.2rem;
+        font-weight: normal;
+        letter-spacing: 2px;
+        box-shadow: none;
+        border: none;
+
+        /* Typing Update: Use inline-block to preventing full-width stretching */
+        display: inline-block;
+        white-space: nowrap;
+        overflow: hidden;
+        border-right: 12px solid #fff;
+        width: 0;
+        animation: typing 3s steps(26, end) forwards,
+          blink 0.75s step-end infinite;
+        text-shadow: 2px 2px #000;
+      }
+      @keyframes typing {
+        from {
+          width: 0;
+        }
+        to {
+          width: 28ch;
+        } /* Adjusted to fit exactly */
+      }
+      @keyframes blink {
+        from,
+        to {
+          border-color: transparent;
+        }
+        50% {
+          border-color: #fff;
+        }
+      }
+      p {
+        color: #fff;
+        margin-bottom: 3rem;
+        text-shadow: 2px 2px 0 #000;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        margin-left: 40px; /* Adjusted to right */
+      }
+      #drop-zone {
+        width: 100%;
+        max-width: 500px;
+        height: 250px;
+        border: 4px solid #c0c0c0; /* Windows 95 Border */
+        border-top-color: #fff;
+        border-left-color: #fff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #000; /* Black Background */
+        cursor: pointer;
+        transition: 0.1s;
+        color: #ffffff; /* White Text */
+        box-shadow: 4px 4px 0px #000;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px #000;
+      }
+      #drop-zone:hover,
+      #drop-zone.dragover {
+        background: #7b7baa; /* Darker Grey hover */
+        border-style: dashed;
+        opacity: 0.8;
+      }
+      /* Ghosting Effect Class */
+      #drop-zone.ghosting i {
+        opacity: 0.2;
+        transition: opacity 0.5s;
+      }
+      #results-area {
+        width: 100%;
+        max-width: 600px;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        z-index: 10;
+      }
+      .file-card {
+        background: #c0c0c0; /* Silver Windows */
+        border: 2px solid #fff;
+        border-bottom-color: #000;
+        border-right-color: #000;
+        border-top-color: #fff;
+        border-left-color: #fff;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #000;
+        position: relative;
+        box-shadow: 4px 4px 0 #000;
+      }
+      .file-card.error {
+        border-color: #ff0000; /* Subtle indication */
+      }
+      .file-card.success {
+        border-color: #fff;
+      }
+      .thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        background: #000;
+        border: 2px solid #808080;
+        border-bottom-color: #fff;
+        border-right-color: #fff;
+        border-top-color: #000;
+        border-left-color: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #fff;
+      }
+      .file-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* Center metadata vertically */
+      }
+      .file-name {
+        font-weight: normal;
+        margin-bottom: 10px;
+        display: block;
+        font-size: 0.8rem;
+        text-align: center; /* Center Name */
+      }
+      .meta-stats {
+        font-size: 0.6rem;
+        color: #000;
+        display: flex;
+        gap: 40px; /* More separation */
+        justify-content: center; /* Center Stats */
+        align-items: center;
+      }
+      .stat-btn {
+        background: #c0c0c0;
+        border: 2px solid #fff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+        padding: 5px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 80px;
+        font-family: inherit; /* Inherit Press Start */
+        text-align: center;
+        gap: 5px;
+      }
+      .stat-btn:active {
+        border: 2px solid #808080;
+        border-right-color: #fff;
+        border-bottom-color: #fff;
+        transform: translate(1px, 1px);
+      }
+      .stat-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        border: 2px solid #808080; /* Flat look */
+      }
+      .stat-btn .stat-label {
+        font-size: 0.5rem; /* Smaller label */
+        color: #000;
+      }
+      .stat-btn span:last-child {
+        font-size: 0.55rem;
+        font-weight: bold;
+      }
+      /* Cleaned specific color override */
+      #btn-cleaned .stat-label,
+      #btn-cleaned span:last-child {
+        color: #008080;
+      }
+      .download-btn {
+        background: #c0c0c0;
+        color: #000;
+        border: 2px solid #fff;
+        border-bottom-color: #000;
+        border-right-color: #000;
+        padding: 6px 14px;
+        cursor: pointer;
+        display: inline-flex; /* Fix Anomaly: Align icon/text */
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 0.7rem;
+        transition: 0.1s;
+        font-family: "Press Start 2P", cursive;
+        white-space: nowrap; /* Fix Anomaly: Prevent wrapping */
+        box-shadow: 2px 2px 0 #000;
+      }
+      .download-btn:active {
+        border: 2px solid #808080;
+        border-bottom-color: #fff;
+        border-right-color: #fff;
+        border-top-color: #000;
+        border-left-color: #000;
+        transform: translate(2px, 2px);
+      }
+      .manual-content {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        color: #ddd;
+      }
+      .manual-header {
+        border-bottom: 2px dashed #00ffaa;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #00ffaa;
+        font-weight: bold;
+      }
+      .manual-section {
+        margin-bottom: 15px;
+        padding-left: 10px;
+        border-left: 2px solid #555;
+      }
+      .manual-section h4 {
+        margin: 0 0 5px -12px;
+        background: #000;
+        display: inline-block;
+        padding-right: 5px;
+        color: #fff;
+        text-transform: uppercase;
+      }
+      .cmd-text {
+        color: #00ffaa;
+      }
+      .warn-text {
+        color: #ff5555;
+      }
+      .error-msg {
+        color: #d00000;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: bold;
+      }
+      .icon-large {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        color: #fff;
+      }
+      .action-btn {
+        background: #000;
+        color: #fff;
+        border: 2px solid #fff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+        padding: 8px 12px; /* More padding */
+        cursor: pointer;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        margin: 0;
+        box-shadow: 2px 2px 0 #000; /* Shadow for pop */
+      }
+      .action-btn:active {
+        border: 2px solid #808080;
+        border-right-color: #fff;
+        border-bottom-color: #fff;
+        transform: translate(2px, 2px);
+        box-shadow: none;
+      }
+      .buttons-area {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap; /* Wrap if needed */
+        gap: 10px;
+      }
+      .progress-container {
+        width: 100%;
+        height: 10px;
+        background: #000;
+        border: 1px solid #fff;
+        margin-top: 5px;
+        display: none; /* Hidden by default */
+      }
+      .progress-bar {
+        height: 100%;
+        background: #00ffaa; /* Retro Green */
+        width: 0%;
+        transition: width 0.1s;
+      }
+
+      /* Retro Modal Styles */
+      #modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+      }
+      #modal-terminal {
+        width: 80%;
+        max-width: 600px;
+        height: 60%;
+        background: #000;
+        border: 4px solid #c0c0c0;
+        color: #0f0;
+        font-family: "Courier New", Courier, monospace;
+        padding: 20px;
+        overflow-y: auto;
+        box-shadow: 10px 10px 0 #000;
+        position: relative;
+      }
+      #close-modal {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: #c0c0c0;
+        color: #000;
+        border: 2px solid #fff;
+        cursor: pointer;
+        font-weight: bold;
+        padding: 2px 5px;
+        font-family: "Press Start 2P";
+        font-size: 10px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Modal Structure -->
+    <div id="modal-overlay">
+      <div id="modal-terminal">
+        <button
+          id="close-modal"
+          onclick="document.getElementById('modal-overlay').style.display='none'"
+        >
+          [X]
+        </button>
+        <h3
+          style="
+            margin-top: 0;
+            border-bottom: 1px dashed #0f0;
+            padding-bottom: 10px;
+          "
+        >
+          METADATA_ANALYZER_V1.0
+        </h3>
+        <div id="modal-content">Loading...</div>
+      </div>
+    </div>
+    <canvas id="matrix"></canvas>
+
+    <!-- Top Bar for Help -->
+    <div style="position: absolute; top: 10px; right: 10px; z-index: 100">
+      <button
+        class="action-btn"
+        onclick="openInfoModal()"
+        style="border-color: #fff"
+      >
+        [ ? ] INFO
+      </button>
+    </div>
+
+    <h1 id="main-title">SYSTEM://METADATA_SCRUBBER</h1>
+    <p>Upload Files. Strip Data. Remain Anonymous.</p>
+
+    <div
+      id="drop-zone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="event.preventDefault(); this.classList.add('dragover'); this.classList.add('ghosting');"
+      ondragleave="this.classList.remove('dragover'); this.classList.remove('ghosting');"
+      ondrop="event.preventDefault(); this.classList.remove('dragover'); this.classList.remove('ghosting'); handleFiles(event.dataTransfer.files);"
+    >
+      <i class="ri-file-upload-line icon-large"></i>
+      <span>INITIATE UPLOAD SEQUENCE</span>
+    </div>
+    <input
+      type="file"
+      id="fileInput"
+      style="display: none"
+      multiple
+      onchange="handleFiles(this.files)"
+    />
+
+    <div id="results-area"></div>
+
+    <script>
+      const WEBHOOK_URL = "http://localhost:5678/webhook/scrub-file";
+      const ANALYZE_URL = "http://localhost:5678/webhook/analyze-file"; // New Webhook
+
+      const resultsArea = document.getElementById("results-area");
+
+      // Handle Title Animation End
+      const title = document.getElementById("main-title");
+      title.addEventListener("animationend", (e) => {
+        if (e.animationName === "typing") {
+          title.classList.add("typing-done");
+        }
+      });
+
+      // Matrix Rain Effect (Restored & Customised)
+      const canvas = document.getElementById("matrix");
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const katakana =
+        "アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン";
+      const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const nums = "0123456789";
+      const alphabet = katakana + latin + nums;
+
+      const fontSize = 16;
+      const columns = canvas.width / fontSize;
+
+      const rainDrops = [];
+      for (let x = 0; x < columns; x++) {
+        rainDrops[x] = 1;
+      }
+
+      const draw = () => {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#FFFFFF"; /* White Text */
+        // Use same font as foreground
+        ctx.font = fontSize + 'px "Press Start 2P"';
+
+        for (let i = 0; i < rainDrops.length; i++) {
+          const text = alphabet.charAt(
+            Math.floor(Math.random() * alphabet.length)
+          );
+          ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+          if (
+            rainDrops[i] * fontSize > canvas.height &&
+            Math.random() > 0.975
+          ) {
+            rainDrops[i] = 0;
+          }
+          rainDrops[i]++;
+        }
+      };
+      setInterval(draw, 50);
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      });
+
+      // 1. Updated Handle Files (Manual Start)
+      function handleFiles(files) {
+        const allowedExtensions = [
+          "jpg",
+          "jpeg",
+          "png",
+          "tiff",
+          "tif",
+          "pdf",
+          "docx",
+          "xlsx",
+          "pptx",
+          "mp4",
+          "mov",
+          "m4v",
+          "qt",
+          "heic",
+          "arw",
+          "cr2",
+          "nef",
+          "dng",
+        ];
+
+        for (let file of files) {
+          const card = createFileCard(file); // Created, but no upload yet
+          resultsArea.appendChild(card);
+
+          const ui = {
+            card: card,
+            status: card.querySelector(".file-status"),
+            downloadArea: card.querySelector(".download-area"),
+            afterSize: card.querySelector(".size-after"),
+            progressBar: card.querySelector(".progress-bar"),
+            progressContainer: card.querySelector(".progress-container"),
+            progressBar: card.querySelector(".progress-bar"),
+            progressContainer: card.querySelector(".progress-container"),
+            btnScrub: card.querySelector(".btn-scrub"), // Direct reference
+          };
+
+          const ext = file.name.split(".").pop().toLowerCase();
+          if (!allowedExtensions.includes(ext)) {
+            markError(ui, `File type .${ext} not supported`);
+            continue;
+          }
+
+          // Button Logic
+          const btnScrub = card.querySelector(".btn-scrub");
+          const btnOriginal = card.querySelector(".btn-original");
+
+          btnScrub.onclick = () => scrubFile(file, ui);
+
+          // Original "Analyze" Action
+          btnOriginal.onclick = () =>
+            analyzeFile(file, "Original File Metadata");
+        }
+      }
+
+      // 2. Updated Create Card (Stats as Buttons)
+      function createFileCard(file) {
+        const div = document.createElement("div");
+        div.className = "file-card";
+
+        const isImage = file.type.startsWith("image/");
+        let thumbnail = `<div class="thumbnail"><i class="ri-file-text-line"></i></div>`;
+
+        if (isImage) {
+          const url = URL.createObjectURL(file);
+          thumbnail = `<img src="${url}" class="thumbnail" onload="URL.revokeObjectURL(this.src)">`;
+        }
+
+        const sizeStr = (file.size / 1024).toFixed(1) + " KB";
+
+        div.innerHTML = `
+            ${thumbnail}
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <div class="meta-stats">
+                    <button class="stat-btn btn-original" title="View Original Metadata">
+                        <span class="stat-label">ORIGINAL</span>
+                        <span>${sizeStr}</span>
+                    </button>
+                    
+                    <button class="action-btn btn-scrub">SCRUB</button>
+
+                    <button class="stat-btn btn-cleaned" disabled title="Details available after scrub">
+                        <span class="stat-label">CLEANED</span>
+                        <span class="size-after">---</span>
+                    </button>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
+                </div>
+
+                <div class="file-status" style="margin-top:5px; font-size:0.85rem; color:#000;">Pending Action...</div>
+            </div>
+            <div class="download-area"></div>
+        `;
+        return div;
+      }
+
+      // 3. New Scrub Logic (XHR Progress)
+      function scrubFile(file, ui) {
+        // Hide button, show progress
+        if (ui.btnScrub) ui.btnScrub.style.display = "none";
+
+        ui.progressContainer.style.display = "block";
+        ui.status.innerText = "Uploading...";
+        ui.status.style.color = "#000";
+
+        let formData = new FormData();
+        formData.append("data", file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", WEBHOOK_URL, true);
+
+        // Upload Progress
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            ui.progressBar.style.width = percent + "%";
+            ui.status.innerText = `Uploading: ${Math.round(percent)}%`;
+          }
+        };
+
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            // Determine blob type from header or default
+            const type =
+              xhr.getResponseHeader("Content-Type") ||
+              "application/octet-stream";
+            const blob = new Blob([xhr.response], { type: type });
+            const url = window.URL.createObjectURL(blob);
+
+            markSuccess(ui, blob, url, file.name);
+          } else {
+            markError(ui, "Server Error: " + xhr.status);
+          }
+        };
+
+        xhr.onerror = function () {
+          markError(ui, "Network Error");
+        };
+
+        xhr.responseType = "blob"; // Important
+        xhr.send(formData);
+      }
+
+      // 4. New Analyze Logic
+      async function analyzeFile(fileOrBlob, titleText) {
+        const modal = document.getElementById("modal-overlay");
+        const content = document.getElementById("modal-content");
+        const header = modal.querySelector("h3");
+
+        header.innerText = titleText || "METADATA ANALYZER";
+        modal.style.display = "flex";
+        content.innerText = "Analyzing... Please Wait...";
+
+        let formData = new FormData();
+        formData.append("data", fileOrBlob);
+
+        try {
+          const response = await fetch(ANALYZE_URL, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) throw new Error("Analysis Failed");
+
+          const json = await response.json();
+          content.innerHTML = `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+        } catch (err) {
+          content.innerText = "Error: Could not fetch metadata. " + err.message;
+        }
+      }
+
+      function openInfoModal() {
+        const modal = document.getElementById("modal-overlay");
+        const content = document.getElementById("modal-content");
+        const header = modal.querySelector("h3");
+
+        header.innerText = "README.TXT";
+        modal.style.display = "flex";
+
+        content.innerHTML = `
+        <div class="manual-content">
+            <div class="manual-header">
+                === METADATA_SCRUBBER_V1.0 ===<br>
+                [ OPERATION MANUAL ]
+            </div>
+
+            <div class="manual-section">
+                <h4>&gt; MISSION_PROFILE</h4>
+                <p><strong>OBJECTIVE:</strong> Eradicate metadata.<br>
+                <strong>TARGETS:</strong> Images, Videos, PDFs, Office Docs.<br>
+                <strong>RESULT:</strong> Total anonymity.</p>
+            </div>
+
+            <div class="manual-section">
+                <h4>&gt; CAPABILITIES</h4>
+                <p>- <span class="cmd-text">DEEP_CLEAN</span>: EXIF, XMP, IPTC, GPS.<br>
+                - <span class="cmd-text">ANTI_FINGERPRINT</span>: Removes device serials.<br>
+                - <span class="cmd-text">LOSSLESS</span>: Pixels remain untouched.</p>
+            </div>
+
+            <div class="manual-section">
+                <h4>&gt; EXECUTION_PROTOCOL</h4>
+                <p>1. <span class="cmd-text">INITIATE</span>: Drag & Drop file.<br>
+                2. <span class="cmd-text">ANALYZE</span>: (Optional) Inspect current metadata.<br>
+                3. <span class="cmd-text">SCRUB</span>: Execute data stripping.<br>
+                4. <span class="cmd-text">EXTRACT</span>: Download clean file.</p>
+            </div>
+
+            <div class="manual-section" style="border-left-color: #ff5555;">
+                <h4 style="color: #ff5555;">&gt; WARNING</h4>
+                <p class="warn-text">Files are vaporized 60s after processing.<br>
+                We keep NO logs. We have NO backups.<br>
+                Once you close this tab, we never met.</p>
+            </div>
+            
+            <div style="text-align:center; margin-top:20px;">
+                <span style="background:#fff; color:#000; padding:2px 5px; font-weight:bold;">END_OF_FILE</span>
+            </div>
+        </div>
+        `;
+      }
+
+      function markError(ui, msg) {
+        ui.card.classList.add("error");
+        ui.status.innerHTML = `<span class="error-msg"><i class="ri-error-warning-fill"></i> ${msg}</span>`;
+        if (ui.progressContainer) ui.progressContainer.style.display = "none";
+        ui.afterSize.innerText = "FAILED";
+      }
+
+      function markSuccess(ui, blob, url, originalName) {
+        if (ui.card.classList.contains("success")) return;
+        ui.card.classList.add("success");
+
+        ui.progressContainer.style.display = "none"; // Hide progress bar on done
+
+        ui.status.innerHTML = `<span style="color:#000000; font-weight:bold;">Scrubbed</span>`;
+
+        const newSize = (blob.size / 1024).toFixed(1) + " KB";
+        ui.afterSize.innerText = newSize;
+
+        // Enable "Cleaned" Button for Post-Scrub Analysis
+        const btnCleaned = ui.card.querySelector(".btn-cleaned");
+        if (btnCleaned) {
+          btnCleaned.disabled = false;
+          btnCleaned.onclick = () => analyzeFile(blob, "Cleaned File Metadata");
+          btnCleaned.title = "View Cleaned Metadata";
+        }
+
+        const btn = document.createElement("a");
+        btn.href = url;
+        btn.className = "download-btn";
+        btn.innerHTML = `<i class="ri-download-2-line"></i> DOWNLOAD`;
+        btn.download = `clean_${originalName}`;
+
+        ui.downloadArea.innerHTML = "";
+        ui.downloadArea.appendChild(btn);
+      }
+    </script>
+  </body>
+</html>
