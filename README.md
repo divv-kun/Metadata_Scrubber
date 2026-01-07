@@ -2,7 +2,7 @@
 
 > An automated, zero-trace privacy metadata remover tool powered by **n8n**, **ExifTool**, and **Docker**.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 ![Docker](https://img.shields.io/badge/docker-automated-blue)
 ![n8n](https://img.shields.io/badge/n8n-workflow-orange)
 
